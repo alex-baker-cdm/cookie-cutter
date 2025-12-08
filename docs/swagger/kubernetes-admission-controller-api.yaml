@@ -1,0 +1,331 @@
+openapi: 3.0.3
+info:
+  title: Cookie Cutter Kubernetes Admission Controller API
+  description: |
+    The Kubernetes Admission Controller API provides webhook endpoints for Kubernetes
+    admission control. This API is provided by the `@walmartlabs/cookie-cutter-kubernetes`
+    package and implements the Kubernetes Admission Review webhook interface.
+
+    Admission controllers intercept requests to the Kubernetes API server before
+    persistence of the object, allowing for validation and mutation of resources.
+
+    This API supports:
+    - **Validating Webhooks**: Accept or reject resource changes
+    - **Mutating Webhooks**: Modify resources before they are persisted
+
+    The server runs over HTTPS with TLS certificates configured at startup.
+  version: 1.0.0
+  contact:
+    name: Cookie Cutter Team
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  - url: https://localhost:443
+    description: Default HTTPS server for admission controller
+
+paths:
+  /{webhookPath}:
+    post:
+      summary: Handle Kubernetes Admission Review Request
+      description: |
+        Receives admission review requests from the Kubernetes API server and returns
+        an admission review response indicating whether the request should be allowed,
+        denied, or modified.
+
+        The webhook path is configurable via the `requestPaths` configuration option.
+        Multiple paths can be configured to handle different types of resources.
+
+        **Operations Supported:**
+        - CREATE: New resource creation
+        - UPDATE: Resource modification
+        - DELETE: Resource deletion
+        - CONNECT: Connection requests
+
+        **Response Types:**
+        - Allow: The request is permitted
+        - Deny: The request is rejected with an optional status message
+        - Mutate: The request is allowed with modifications (JSON Patch)
+      operationId: handleAdmissionReview
+      tags:
+        - Admission Controller
+      parameters:
+        - name: webhookPath
+          in: path
+          required: true
+          description: The configured webhook path for this admission controller
+          schema:
+            type: string
+          example: /validate-pods
+      requestBody:
+        required: true
+        description: Kubernetes AdmissionReview request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdmissionReviewRequest'
+            examples:
+              createPod:
+                summary: Pod creation request
+                value:
+                  apiVersion: admission.k8s.io/v1
+                  kind: AdmissionReview
+                  request:
+                    uid: 705ab4f5-6393-11e8-b7cc-42010a800002
+                    kind:
+                      group: ""
+                      version: v1
+                      kind: Pod
+                    resource:
+                      group: ""
+                      version: v1
+                      resource: pods
+                    requestKind:
+                      group: ""
+                      version: v1
+                      kind: Pod
+                    requestResource:
+                      group: ""
+                      version: v1
+                      resource: pods
+                    name: my-pod
+                    namespace: default
+                    operation: CREATE
+                    userInfo:
+                      username: admin
+                      uid: "014fbff9a07c"
+                      groups:
+                        - system:authenticated
+                    object:
+                      apiVersion: v1
+                      kind: Pod
+                      metadata:
+                        name: my-pod
+                        namespace: default
+                      spec:
+                        containers:
+                          - name: nginx
+                            image: nginx:latest
+                    oldObject: null
+                    dryRun: false
+      responses:
+        '200':
+          description: Admission review response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdmissionReviewResponse'
+              examples:
+                allowed:
+                  summary: Request allowed
+                  value:
+                    response:
+                      uid: 705ab4f5-6393-11e8-b7cc-42010a800002
+                      allowed: true
+                denied:
+                  summary: Request denied
+                  value:
+                    response:
+                      uid: 705ab4f5-6393-11e8-b7cc-42010a800002
+                      allowed: false
+                      status:
+                        code: 403
+                        message: "Pod image must not use 'latest' tag"
+                mutated:
+                  summary: Request allowed with mutations
+                  value:
+                    response:
+                      uid: 705ab4f5-6393-11e8-b7cc-42010a800002
+                      allowed: true
+                      patchType: JSONPatch
+                      patch: W3sib3AiOiJhZGQiLCJwYXRoIjoiL21ldGFkYXRhL2xhYmVscy9tdXRhdGVkIiwidmFsdWUiOiJ0cnVlIn1d
+
+components:
+  schemas:
+    AdmissionReviewRequest:
+      type: object
+      required:
+        - apiVersion
+        - kind
+        - request
+      properties:
+        apiVersion:
+          type: string
+          description: API version of the AdmissionReview
+          example: admission.k8s.io/v1
+        kind:
+          type: string
+          description: Kind of the resource
+          example: AdmissionReview
+        request:
+          $ref: '#/components/schemas/AdmissionRequest'
+
+    AdmissionRequest:
+      type: object
+      required:
+        - uid
+        - kind
+        - resource
+        - operation
+      properties:
+        uid:
+          type: string
+          description: Unique identifier for this admission request
+          example: 705ab4f5-6393-11e8-b7cc-42010a800002
+        kind:
+          $ref: '#/components/schemas/GroupVersionKind'
+        resource:
+          $ref: '#/components/schemas/GroupVersionResource'
+        requestKind:
+          $ref: '#/components/schemas/GroupVersionKind'
+        requestResource:
+          $ref: '#/components/schemas/GroupVersionResource'
+        name:
+          type: string
+          description: Name of the resource being modified
+          example: my-pod
+        namespace:
+          type: string
+          description: Namespace of the resource (if namespaced)
+          example: default
+        operation:
+          type: string
+          enum:
+            - CREATE
+            - UPDATE
+            - DELETE
+            - CONNECT
+          description: The operation being performed
+          example: CREATE
+        userInfo:
+          $ref: '#/components/schemas/UserInfo'
+        object:
+          type: object
+          description: The new object being admitted (null for DELETE)
+          additionalProperties: true
+        oldObject:
+          type: object
+          description: The existing object (null for CREATE and CONNECT)
+          additionalProperties: true
+          nullable: true
+        dryRun:
+          type: boolean
+          description: Whether this is a dry run request
+          example: false
+
+    GroupVersionKind:
+      type: object
+      properties:
+        group:
+          type: string
+          description: API group
+          example: ""
+        version:
+          type: string
+          description: API version
+          example: v1
+        kind:
+          type: string
+          description: Resource kind
+          example: Pod
+
+    GroupVersionResource:
+      type: object
+      properties:
+        group:
+          type: string
+          description: API group
+          example: ""
+        version:
+          type: string
+          description: API version
+          example: v1
+        resource:
+          type: string
+          description: Resource type
+          example: pods
+
+    UserInfo:
+      type: object
+      properties:
+        username:
+          type: string
+          description: Username of the requesting user
+          example: admin
+        uid:
+          type: string
+          description: UID of the requesting user
+          example: "014fbff9a07c"
+        groups:
+          type: array
+          items:
+            type: string
+          description: Groups the user belongs to
+          example:
+            - system:authenticated
+
+    AdmissionReviewResponse:
+      type: object
+      required:
+        - response
+      properties:
+        response:
+          $ref: '#/components/schemas/AdmissionResponse'
+
+    AdmissionResponse:
+      type: object
+      required:
+        - uid
+        - allowed
+      properties:
+        uid:
+          type: string
+          description: UID from the original request
+          example: 705ab4f5-6393-11e8-b7cc-42010a800002
+        allowed:
+          type: boolean
+          description: Whether the request is allowed
+          example: true
+        status:
+          $ref: '#/components/schemas/Status'
+        patchType:
+          type: string
+          enum:
+            - JSONPatch
+          description: Type of patch (only for mutating webhooks)
+          example: JSONPatch
+        patch:
+          type: string
+          format: byte
+          description: Base64-encoded JSON Patch for mutations
+          example: W3sib3AiOiJhZGQiLCJwYXRoIjoiL21ldGFkYXRhL2xhYmVscy9tdXRhdGVkIiwidmFsdWUiOiJ0cnVlIn1d
+
+    Status:
+      type: object
+      description: Status information for denied requests
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+          example: 403
+        message:
+          type: string
+          description: Human-readable message explaining the denial
+          example: "Pod image must not use 'latest' tag"
+
+  securitySchemes:
+    mtls:
+      type: mutualTLS
+      description: Mutual TLS authentication with Kubernetes API server
+
+security:
+  - mtls: []
+
+tags:
+  - name: Admission Controller
+    description: Kubernetes admission webhook endpoints
+
+externalDocs:
+  description: Kubernetes Admission Controllers Documentation
+  url: https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/

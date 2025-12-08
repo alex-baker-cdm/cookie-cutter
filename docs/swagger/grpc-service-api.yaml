@@ -1,0 +1,292 @@
+openapi: 3.0.3
+info:
+  title: Cookie Cutter gRPC Service API
+  description: |
+    The gRPC Service API provides high-performance RPC communication using Protocol Buffers.
+    This API is provided by the `@walmartlabs/cookie-cutter-grpc` package and supports
+    both unary and streaming RPC patterns.
+
+    **Note:** This documentation describes the gRPC service interface in OpenAPI format
+    for reference purposes. The actual communication uses the gRPC protocol over HTTP/2,
+    not REST/JSON. For native gRPC clients, use the Protocol Buffer definitions directly.
+
+    ## Features
+
+    - **Unary RPC**: Single request, single response
+    - **Server Streaming**: Single request, stream of responses
+    - **Client Streaming**: Stream of requests, single response
+    - **Bidirectional Streaming**: Stream of requests and responses
+
+    ## Configuration
+
+    The gRPC server can be configured with:
+    - `host`: Server host (default: localhost)
+    - `port`: Server port
+    - `definitions`: Array of service definitions
+    - `maximumPayloadSize`: Maximum message size in bytes
+
+    ## Client Configuration
+
+    gRPC clients support:
+    - `endpoint`: Server endpoint (host:port)
+    - `definition`: Service definition
+    - `connectionTimeout`: Connection timeout in milliseconds
+    - `requestTimeout`: Request timeout in milliseconds
+    - `certPath`: Path to TLS certificate for secure connections
+  version: 1.0.0
+  contact:
+    name: Cookie Cutter Team
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  - url: grpc://localhost:5001
+    description: Default gRPC server endpoint
+
+paths:
+  /{servicePath}:
+    post:
+      summary: Execute gRPC Method
+      description: |
+        Executes a gRPC method on the server. The actual path is determined by the
+        service definition's `path` property.
+
+        **Path Format:** `/{package}.{ServiceName}/{MethodName}`
+
+        For example, a service defined as:
+        ```protobuf
+        package samples;
+        service EchoService {
+            rpc Echo(Request) returns(Response);
+        }
+        ```
+
+        Would have the path: `/samples.EchoService/Echo`
+
+        **Message Handling:**
+        - Request messages are encoded using Protocol Buffers
+        - The message type is derived from the service definition
+        - Responses are decoded using the response type from the definition
+      operationId: executeGrpcMethod
+      tags:
+        - gRPC Service
+      parameters:
+        - name: servicePath
+          in: path
+          required: true
+          description: |
+            The gRPC service path in format `/{package}.{ServiceName}/{MethodName}`
+          schema:
+            type: string
+          example: /samples.EchoService/Echo
+      requestBody:
+        required: true
+        description: Protocol Buffer encoded request message
+        content:
+          application/grpc:
+            schema:
+              $ref: '#/components/schemas/GrpcRequest'
+          application/json:
+            schema:
+              type: object
+              description: JSON representation of the request (for documentation purposes)
+              additionalProperties: true
+            examples:
+              echoRequest:
+                summary: Echo service request
+                value:
+                  value: "Hello, World!"
+      responses:
+        '200':
+          description: Successful gRPC response
+          content:
+            application/grpc:
+              schema:
+                $ref: '#/components/schemas/GrpcResponse'
+            application/json:
+              schema:
+                type: object
+                description: JSON representation of the response (for documentation purposes)
+                additionalProperties: true
+              examples:
+                echoResponse:
+                  summary: Echo service response
+                  value:
+                    value: "Hello, World!"
+        '400':
+          description: Invalid request (malformed Protocol Buffer message)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrpcError'
+        '408':
+          description: Request timeout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrpcError'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrpcError'
+        '503':
+          description: Service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrpcError'
+
+components:
+  schemas:
+    GrpcRequest:
+      type: object
+      description: |
+        A gRPC request message. The actual structure depends on the Protocol Buffer
+        definition for the specific service method.
+      properties:
+        payload:
+          type: object
+          description: The request payload encoded as Protocol Buffer
+          additionalProperties: true
+
+    GrpcResponse:
+      type: object
+      description: |
+        A gRPC response message. The actual structure depends on the Protocol Buffer
+        definition for the specific service method.
+      properties:
+        payload:
+          type: object
+          description: The response payload decoded from Protocol Buffer
+          additionalProperties: true
+
+    GrpcError:
+      type: object
+      description: gRPC error response
+      properties:
+        code:
+          type: integer
+          description: gRPC status code
+          example: 2
+        message:
+          type: string
+          description: Error message
+          example: "Unknown error occurred"
+        details:
+          type: array
+          items:
+            type: object
+          description: Additional error details
+
+    ServiceDefinition:
+      type: object
+      description: |
+        Defines a gRPC service method. Used to configure the gRPC source and client.
+      required:
+        - path
+        - requestType
+        - responseType
+        - requestStream
+        - responseStream
+      properties:
+        path:
+          type: string
+          description: The gRPC method path
+          example: /samples.EchoService/Echo
+        requestType:
+          type: object
+          description: Protocol Buffer type for request messages
+        responseType:
+          type: object
+          description: Protocol Buffer type for response messages
+        requestStream:
+          type: boolean
+          description: Whether the client sends a stream of requests
+          example: false
+        responseStream:
+          type: boolean
+          description: Whether the server sends a stream of responses
+          example: false
+
+    ServerConfiguration:
+      type: object
+      description: Configuration for the gRPC server
+      required:
+        - port
+        - definitions
+      properties:
+        port:
+          type: integer
+          description: Server port number
+          example: 5001
+        host:
+          type: string
+          description: Server host address
+          default: localhost
+          example: "0.0.0.0"
+        definitions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceDefinition'
+          description: Array of service definitions
+        skipNoStreamingValidation:
+          type: boolean
+          description: Skip validation for non-streaming methods
+          default: false
+
+    ClientConfiguration:
+      type: object
+      description: Configuration for the gRPC client
+      required:
+        - endpoint
+        - definition
+      properties:
+        endpoint:
+          type: string
+          description: Server endpoint in host:port format
+          example: "localhost:5001"
+        definition:
+          $ref: '#/components/schemas/ServiceDefinition'
+        connectionTimeout:
+          type: integer
+          description: Connection timeout in milliseconds
+          default: 2000
+          example: 2000
+        requestTimeout:
+          type: integer
+          description: Request timeout in milliseconds
+          default: 10000
+          example: 10000
+
+    GrpcMetadata:
+      type: object
+      description: Metadata attached to gRPC messages
+      properties:
+        operationPath:
+          type: string
+          description: The gRPC operation path
+          example: /samples.EchoService/Echo
+        responseStream:
+          type: boolean
+          description: Whether this is a streaming response
+        peer:
+          type: string
+          description: The peer address
+
+tags:
+  - name: gRPC Service
+    description: |
+      gRPC service endpoints for high-performance RPC communication.
+
+      **Protocol:** gRPC over HTTP/2
+      **Encoding:** Protocol Buffers
+
+      For native gRPC clients, use the `.proto` files directly with your
+      preferred gRPC code generator.
+
+externalDocs:
+  description: Cookie Cutter gRPC Module Documentation
+  url: https://walmartlabs.github.io/cookie-cutter/docs/Module_Grpc

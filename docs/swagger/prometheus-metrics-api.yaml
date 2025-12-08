@@ -1,0 +1,108 @@
+openapi: 3.0.3
+info:
+  title: Cookie Cutter Prometheus Metrics API
+  description: |
+    The Prometheus Metrics API exposes application metrics in Prometheus text format.
+    This endpoint is provided by the `@walmartlabs/cookie-cutter-prometheus` package
+    and can be scraped by Prometheus for monitoring and alerting purposes.
+
+    The metrics endpoint exposes counters, gauges, and histograms that track
+    application performance and behavior.
+  version: 1.0.0
+  contact:
+    name: Cookie Cutter Team
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  - url: http://localhost:3000
+    description: Default local development server
+
+paths:
+  /metrics:
+    get:
+      summary: Get Prometheus Metrics
+      description: |
+        Returns all collected metrics in Prometheus text exposition format.
+        This endpoint is designed to be scraped by Prometheus at regular intervals.
+
+        The response includes:
+        - **Counters**: Cumulative metrics that only increase (e.g., request counts)
+        - **Gauges**: Metrics that can increase or decrease (e.g., CPU utilization)
+        - **Histograms**: Observations bucketed by configurable boundaries (e.g., request latencies)
+
+        Each metric includes optional labels for dimensional data.
+      operationId: getMetrics
+      tags:
+        - Metrics
+      responses:
+        '200':
+          description: Successful response with metrics in Prometheus text format
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: |
+                  # HELP cookie_cutter_requests_total Total number of requests processed
+                  # TYPE cookie_cutter_requests_total counter
+                  cookie_cutter_requests_total{event_type="MessageReceived",result="success"} 42
+
+                  # HELP cookie_cutter_request_duration_seconds Request duration in seconds
+                  # TYPE cookie_cutter_request_duration_seconds histogram
+                  cookie_cutter_request_duration_seconds_bucket{le="0.05"} 10
+                  cookie_cutter_request_duration_seconds_bucket{le="0.2"} 25
+                  cookie_cutter_request_duration_seconds_bucket{le="0.5"} 35
+                  cookie_cutter_request_duration_seconds_bucket{le="1"} 40
+                  cookie_cutter_request_duration_seconds_bucket{le="5"} 42
+                  cookie_cutter_request_duration_seconds_bucket{le="30"} 42
+                  cookie_cutter_request_duration_seconds_bucket{le="100"} 42
+                  cookie_cutter_request_duration_seconds_bucket{le="+Inf"} 42
+                  cookie_cutter_request_duration_seconds_sum 15.5
+                  cookie_cutter_request_duration_seconds_count 42
+
+                  # HELP cookie_cutter_active_connections Current number of active connections
+                  # TYPE cookie_cutter_active_connections gauge
+                  cookie_cutter_active_connections 5
+        '404':
+          description: Endpoint not found (metrics endpoint not configured at this path)
+
+components:
+  schemas:
+    PrometheusMetric:
+      type: object
+      description: A Prometheus metric with its metadata and values
+      properties:
+        name:
+          type: string
+          description: The metric name (prefixed with configured prefix)
+          example: cookie_cutter_requests_total
+        type:
+          type: string
+          enum:
+            - counter
+            - gauge
+            - histogram
+          description: The type of Prometheus metric
+        help:
+          type: string
+          description: Human-readable description of the metric
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          description: Key-value pairs for metric dimensions
+          example:
+            event_type: MessageReceived
+            result: success
+        value:
+          type: number
+          description: The current value of the metric
+
+tags:
+  - name: Metrics
+    description: Prometheus metrics collection and exposition
+
+externalDocs:
+  description: Cookie Cutter Prometheus Module Documentation
+  url: https://walmartlabs.github.io/cookie-cutter/docs/Module_Prometheus
