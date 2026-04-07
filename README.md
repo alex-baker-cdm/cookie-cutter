@@ -15,6 +15,11 @@ An opinionated framework for building event-driven and request/response based mi
 * Can be used for RPC, message based services, and even cron jobs
 * Framework for Writing End-to-End Tests
 
+## Prerequisites
+
+* Node.js >= 22.0.0 (LTS)
+* Yarn 1.x
+
 ## Getting Started
 
 The documentation is available [here](https://walmartlabs.github.io/cookie-cutter).

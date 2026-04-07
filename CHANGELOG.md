@@ -1,3 +1,12 @@
+# 1.6
+
+## CI/CD
+- Update all build and CI steps to Node.js 22 LTS (from Node 16).
+- Update `actions/setup-node` to v4.
+- Update `@types/node` to 22.x.
+- Minimum required Node.js version is now 22.0.0.
+- Update docs Dockerfile base image to `node:22-slim`.
+
 # 1.5
 
 ## CI/CD
