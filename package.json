@@ -10,12 +10,12 @@
     "minipass": "3.2.1"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=22.0.0"
   },
   "devDependencies": {
     "@types/jest": "28.1.4",
     "@types/long": "4.0.2",
-    "@types/node": "16.11.43",
+    "@types/node": "22.15.2",
     "glob": "8.0.3",
     "jest": "28.1.2",
     "jest-junit": "14.0.0",
